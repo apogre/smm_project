@@ -1,0 +1,10 @@
+(lp1
+S'@GFFN'
+p2
+aS'Crystal Palace'
+p3
+aS'LFc'
+p4
+aS'Steve Mandanda'
+p5
+a.
