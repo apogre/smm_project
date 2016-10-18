@@ -127,7 +127,7 @@ def relation_extractor(resources):
                                 #     relation.append(rel[-1])
                                 if 'dbpedia' in item1 and 'dbpedia' in item2:
                                     result1 = sparql.query('http://dbpedia.org/sparql', q1)
-                                    # print q1
+                                    print q1
                                     for row1 in result1:
                                         values1 = sparql.unpack_row(row1)
                                         if values1:
@@ -167,46 +167,47 @@ with open('obama_sample.txt','r') as f:
     for i,row in enumerate(para.split('.')):
         print i
         print row
-        if row:
-            doc = row
-            # try:
-            tagged = ie_preprocess(doc)
-            # print tagged
-            tree = nltk.ne_chunk(tagged[0])
-            print "====Tree===="
-            print tree
-            # tree = Tree.fromstring(str(tree)
-            ent =  getNodes(tree)
-            # print ent
-            updated_labels = []
-            for en in ent:
-                if 'University' in en[0] or 'College' in en[0]:
-                    label1 = str(en[0])+' alumni'
-                    tup2 = (label1,en[1])
-                    # print tup2
-                    updated_labels.append(tup2)
-            ent.extend(updated_labels)
+        try:
+            if row:
+                doc = row
+                
+                tagged = ie_preprocess(doc)
+                # print tagged
+                tree = nltk.ne_chunk(tagged[0])
+                print "====Tree===="
+                print tree
+                # tree = Tree.fromstring(str(tree)
+                ent =  getNodes(tree)
+                # print ent
+                updated_labels = []
+                for en in ent:
+                    if 'University' in en[0] or 'College' in en[0] or 'School' in en[0]:
+                        label1 = str(en[0])+' alumni'
+                        tup2 = (label1,en[1])
+                        # print tup2
+                        updated_labels.append(tup2)
+                ent.extend(updated_labels)
 
-            try:
-                date = date_parser(doc)
-                tup1 = (date,'DATE')
-                ent.append(tup1)
-                date_flag = 1
-            except:
+                try:
+                    date = date_parser(doc)
+                    tup1 = (date,'DATE')
+                    ent.append(tup1)
+                    date_flag = 1
+                except:
+                    pass
+                print "====Entities===="
+                print ent
+                # sys.exit()
+                resources = resource_extractor(ent)
+                print resources
+                # print date_flag
+                relation_extractor(resources)
+                if date_flag == 1:
+                    date_extractor(date,resources)
+                    date_flag = 0
+                # objects.extend(ent)
+        except:
                 pass
-            print "====Entities===="
-            print ent
-            # sys.exit()
-            resources = resource_extractor(ent)
-            # print resources
-            # print date_flag
-            relation_extractor(resources)
-            if date_flag == 1:
-                date_extractor(date,resources)
-                date_flag = 0
-            # objects.extend(ent)
-        # except:
-            #     pass
                 # with open('logs.csv','ab') as csvf:
                 #     swriter = csv.writer(csvf)
                 #     swriter.writerow(row)
