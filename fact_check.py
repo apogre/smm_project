@@ -27,6 +27,11 @@ date_flag = 0
 #      rdfs:range xsd:date .
 #  <http://dbpedia.org/resource/Barack_Obama> ?p ?o .
 # }
+# SELECT distinct ?uri ?label
+# WHERE {
+#    ?uri rdfs:label ?label .
+#    FILTER regex(str(?label), "Barack Hussein Obama", "i")
+# }
 
 
 
