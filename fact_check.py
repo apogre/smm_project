@@ -87,7 +87,8 @@ def resource_extractor(labels):
                         my_list.append(values1)
                     types[values[0]]= my_list
             entities[i] = types
-            resources[label] = resource_list        
+            resources[label] = resource_list
+    print types        
     return resources
             # print resources
 
