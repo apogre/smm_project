@@ -110,7 +110,7 @@ def resource_extractor_updated(labels):
             print label
             # if label[1] == 'GPE':
             # label = label[0]
-            # new_labels.append(label)
+            new_labels.append(label)
             q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER(regex(str(?label),"'+ str(label[0]) +'", "i") && langMatches(lang(?label),"EN") )} limit 100')
             result = sparql.query('http://dbpedia.org/sparql', q_u)
             # print result
@@ -138,28 +138,30 @@ def resource_extractor_updated(labels):
 
 
 def relation_extractor(resources):
-    # print new_labels
+    print new_labels
     # sys.exit()
     # print resources
     print "====Relations===="
-
+    my_item1 = []
+    my_item2 = []
     for i in range(0,len(resources)):
-        if str(new_labels[i]) in resources:
-            for item1 in resources[new_labels[i]]:
-                if 'dbpedia' in item1:
-                    link = urllib2.urlopen(item1)
-                    item1 = link.geturl()
-                    item1 = item1.replace('page','resource')
+        print new_labels[i][0]
+        if str(new_labels[i][0]) in resources:
+            for item1_k,item1_v in resources[new_labels[i][0]].iteritems():
+                if 'dbpedia' in item1_v[0]:
+                    link = urllib2.urlopen(item1_v[0])
+                    url1 = link.geturl()
+                    url1 = url1.replace('page','resource')
                 # print item1
                 for j in range(i+1,len(resources)):
-                    if str(new_labels[j]) in resources:
-                        for item2 in resources[new_labels[j]]:
-                            if 'dbpedia' in item2:
-                                link = urllib2.urlopen(item2)
-                                item2 = link.geturl()
-                                item2 = item2.replace('page','resource')
+                    if str(new_labels[j][0]) in resources:
+                        for item2_k,item2_v in resources[new_labels[j][0]].iteritems():
+                            if 'dbpedia' in item2_v[0]:
+                                link = urllib2.urlopen(item2_v[0])
+                                url2 = link.geturl()
+                                url2 = url2.replace('page','resource')
                             # print item2
-                            q1=('SELECT ?r WHERE  { <'+str(item1) + '> ?r <' +str(item2)+'>}')
+                            q1=('SELECT ?r WHERE  { <'+str(url1) + '> ?r <' +str(url2)+'>}')
                             # print q1
                             try:
                                 # if 'wikidata' in item1 and 'wikidata' in item2:
@@ -170,19 +172,22 @@ def relation_extractor(resources):
                                 #     print '\n'
                                 #     rel =  data['r']['value'].split('/')
                                 #     relation.append(rel[-1])
-                                if 'dbpedia' in item1 and 'dbpedia' in item2:
-                                    result1 = sparql.query('http://dbpedia.org/sparql', q1)
-                                    print q1
-                                    for row1 in result1:
-                                        values1 = sparql.unpack_row(row1)
-                                        if values1:
-                                            print([str(item1),str(values1[0]),str(item2)])
-                                            print '\n'
-                                            rel =  values1[0].split('/')
-                                            relation.append(rel[-1])
-                                # print relation
-                                            # writer.writerow([str(item1),str(values1[0]),str(item2)])  
-                                        # relation.append(values1[0])
+                                if url1 not in my_item1 and url2 not in my_item2:
+                                    if 'dbpedia' in url1 and 'dbpedia' in url2:
+                                        result1 = sparql.query('http://dbpedia.org/sparql', q1)
+                                        print q1
+                                        my_item1.append(url1)
+                                        my_item2.append(url2)
+                                        for row1 in result1:
+                                            values1 = sparql.unpack_row(row1)
+                                            if values1:
+                                                print([str(url1),str(values1[0]),str(url2)])
+                                                print '\n'
+                                                rel =  values1[0].split('/')
+                                                relation.append(rel[-1])
+                                    # print relation
+                                                # writer.writerow([str(item1),str(values1[0]),str(item2)])  
+                                            # relation.append(values1[0])
                             except:
                                 pass 
 
@@ -212,48 +217,48 @@ with open('obama_sample.txt','r') as f:
     for i,row in enumerate(para.split('.')):
         print i
         print row
-        try:
-            if row:
-                doc = row
-                
-                tagged = ie_preprocess(doc)
-                # print tagged
-                tree = nltk.ne_chunk(tagged[0])
-                print "====Tree===="
-                print tree
-                # tree = Tree.fromstring(str(tree)
-                ent =  getNodes(tree)
-                # print ent
-                updated_labels = []
-                for en in ent:
-                    if 'University' in en[0] or 'College' in en[0] or 'School' in en[0]:
-                        label1 = str(en[0])+' alumni'
-                        tup2 = (label1,en[1])
-                        # print tup2
-                        updated_labels.append(tup2)
-                ent.extend(updated_labels)
+        # try:
+        if row:
+            doc = row
+            
+            tagged = ie_preprocess(doc)
+            # print tagged
+            tree = nltk.ne_chunk(tagged[0])
+            print "====Tree===="
+            print tree
+            # tree = Tree.fromstring(str(tree)
+            ent =  getNodes(tree)
+            # print ent
+            updated_labels = []
+            for en in ent:
+                if 'University' in en[0] or 'College' in en[0] or 'School' in en[0]:
+                    label1 = str(en[0])+' alumni'
+                    tup2 = (label1,en[1])
+                    # print tup2
+                    updated_labels.append(tup2)
+            ent.extend(updated_labels)
 
-                try:
-                    date = date_parser(doc)
-                    tup1 = (date,'DATE')
-                    ent.append(tup1)
-                    date_flag = 1
-                except:
-                    pass
-                print "====Entities===="
-                # print ent
-                # sys.exit()
-                # resources = resource_extractor(ent)
-                resources = resource_extractor_updated(ent)
-                print resources
-                # print date_flag
-                # relation_extractor(resources)
-                # if date_flag == 1:
-                #     date_extractor(date,resources)
-                #     date_flag = 0
-                # objects.extend(ent)
-        except:
+            try:
+                date = date_parser(doc)
+                tup1 = (date,'DATE')
+                ent.append(tup1)
+                date_flag = 1
+            except:
                 pass
+            print "====Entities===="
+            # print ent
+            # sys.exit()
+            # resources = resource_extractor(ent)
+            resources = resource_extractor_updated(ent)
+            print resources
+            # print date_flag
+            relation_extractor(resources)
+            # if date_flag == 1:
+            #     date_extractor(date,resources)
+            #     date_flag = 0
+            # objects.extend(ent)
+        # except:
+        #         pass
                 # with open('logs.csv','ab') as csvf:
                 #     swriter = csv.writer(csvf)
                 #     swriter.writerow(row)
