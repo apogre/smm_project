@@ -9,6 +9,7 @@ import dateutil.parser as dp
 import sparql
 import urllib2
 import json
+from difflib import SequenceMatcher
 
 objects = []
 relation=[]
@@ -35,6 +36,8 @@ date_flag = 0
 # q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type foaf:'+ str(label[1].title()) + ' . FILTER (regex(str(?label),"'+ str(label[0]) +'", "i") && langMatches(lang(?label),"EN") )} limit 100')
 
 
+def similar(a,b):
+    return SequenceMatcher(None,a,b).ratio()
 
 def ie_preprocess(doc):
     sentences = nltk.sent_tokenize(doc)
@@ -102,31 +105,34 @@ def resource_extractor_updated(labels):
     print labels
     for i,label in enumerate(labels):
         resource_list = []
+        score_list = {}
         if label[1] != 'DATE':
             print label
-            if label[1] == 'GPE':
+            # if label[1] == 'GPE':
             # label = label[0]
             # new_labels.append(label)
-            q_u = ('SELECT distinct ?uri ?label ?type WHERE { ?uri rdfs:label ?label . ?uri rdf:type ?type . FILTER (regex(str(?label),"'+ str(label[0]) +'", "i") && langMatches(lang(?label),"EN") )} limit 100')
-            # q = ('select distinct ?x where{?x rdfs:label "'+ label +'"@en }')
-            print q_u
+            q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER(regex(str(?label),"'+ str(label[0]) +'", "i") && langMatches(lang(?label),"EN") )} limit 100')
             result = sparql.query('http://dbpedia.org/sparql', q_u)
             # print result
             # types = {}
             for row in result:
                 values = sparql.unpack_row(row)
+                print values
                 if not 'Category:' in values[0] or 'alumni' in values[0]:
                     print values[0]
-                    resource_list.append(values[0])
+                    score = similar(values[1],label[0])
+                    score_list[score] = values
+                    # resource_list.append(values[0])
                     # my_list = []
-                    q1=('SELECT distinct ?type ?superType WHERE  { <'+str(values[0]) + '> rdf:type ?type . optional { ?type rdfs:subClassOf ?superType } }')
+                    # q1=('SELECT distinct ?type ?superType WHERE  { <'+str(values[0]) + '> rdf:type ?type . optional { ?type rdfs:subClassOf ?superType } }')
                     # result1 = sparql.query('http://dbpedia.org/sparql', q1)
                     # for row1 in result1:
                     #     values1 = sparql.unpack_row(row1)
                     #     my_list.append(values1)
                     # types[values[0]]= my_list
             # entities[i] = types
-            resources[label] = resource_list
+            resources[label[0]] = score_list
+            # print resources
     # print types        
     return resources
 
@@ -239,7 +245,7 @@ with open('obama_sample.txt','r') as f:
                 # sys.exit()
                 # resources = resource_extractor(ent)
                 resources = resource_extractor_updated(ent)
-                # print resources
+                print resources
                 # print date_flag
                 # relation_extractor(resources)
                 # if date_flag == 1:
