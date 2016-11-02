@@ -16,8 +16,11 @@ cp = nltk.RegexpParser(grammar)
 
 def ie_preprocess(doc):
     sentences = nltk.sent_tokenize(doc)
+    print sentences
     sentences = [nltk.word_tokenize(sent) for sent in sentences]
+    print sentences
     sentences = [nltk.pos_tag(sent) for sent in sentences] 
+    print sentences
     return sentences
 
 def getNodes(parent):
@@ -41,7 +44,7 @@ def getNodes(parent):
     return entities
 
 
-with open('tweet3.csv','rb') as csvfile:
+with open('tweet.csv','rb') as csvfile:
     reader = csv.reader(csvfile)
     for i,row in enumerate(reader):
         print i
@@ -52,6 +55,7 @@ with open('tweet3.csv','rb') as csvfile:
             # print tagged
             # sys.exit()
             tree = nltk.ne_chunk(tagged[0])
+            print tree
             # print tree
             # tree = Tree.fromstring(str(tree)
             ent =  getNodes(tree)
@@ -64,5 +68,5 @@ with open('tweet3.csv','rb') as csvfile:
 
 
 # print entities
-with open('entity.txt','wb') as fp:
-    pickle.dump(objects,fp)
+# with open('entity.txt','wb') as fp:
+#     pickle.dump(objects,fp)
