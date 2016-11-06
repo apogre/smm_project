@@ -12,6 +12,10 @@ import json
 from difflib import SequenceMatcher
 import datetime
 from string import digits
+from nltk.tag import StanfordNERTagger
+from itertools import groupby
+
+st = StanfordNERTagger('english.all.3class.distsim.crf.ser.gz')
 
 
 objects = []
@@ -20,6 +24,9 @@ ROOT = 'ROOT'
 SPARQL_SERVICE_URL = 'https://query.wikidata.org/sparql'
 global date_flag
 date_flag = 0
+
+# export CLASSPATH=/home/wolfgang/Downloads/stanford-ner-2015-04-20/stanford-ner-3.5.2.jar
+# export STANFORD_MODELS=/home/wolfgang/Downloads/stanford-ner-2015-04-20/classifiers
 
 # grammar = r"""
 #         NP: {<DT>?<JJ.*>*<NN.*>+}
@@ -38,35 +45,16 @@ date_flag = 0
 # }
 # q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type foaf:'+ str(label[1].title()) + ' . FILTER (regex(str(?label),"'+ str(label[0]) +'", "i") && langMatches(lang(?label),"EN") )} limit 100')
 
+def get_nodes_updated(netagged_words):
+    ent = []
+    for tag, chunk in groupby(netagged_words, lambda x:x[1]):
+        if tag != "O":
+            tuple1 =(tag, " ".join(w for w, t in chunk))
+            ent.append(tuple1)
+    return ent
 
 def similar(a,b):
     return SequenceMatcher(None,a,b).ratio()
-
-def ie_preprocess(doc):
-    sentences = nltk.sent_tokenize(doc)
-    sentences = [nltk.word_tokenize(sent) for sent in sentences]
-    sentences = [nltk.pos_tag(sent) for sent in sentences] 
-    return sentences
-
-def getNodes(parent):
-    entities = []
-    for node in parent:
-        if type(node) is Tree:
-            if node.label() == ROOT:
-                pass
-            elif node.label() == 'DATE' or node.label() == 'ORGANIZATION' or node.label() =='PERSON' or node.label() =='LOCATION' or node.label() =='FACILITY' or node.label() =='GPE':
-                entity = node.leaves()
-                entity = ' '.join(e[0] for e in entity)
-                # print node.label(), node
-                # print index_list.index(entity)
-                tup = (entity, node.label())
-                entities.append(tup)
-            else:
-                pass
-            getNodes(node)
-        else:
-            pass
-    return entities
 
 def date_parser(doc):
     return dp.parse(doc,fuzzy=True)
@@ -117,8 +105,9 @@ def resource_extractor_updated(labels):
             # label = label[0]
             new_labels.append(label)
             q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER(regex(str(?label),"'+r'\\b' +str(label[0]) +r'\\b'+'", "i") && langMatches(lang(?label),"EN") )} limit 100')
-            # print q_u
-            result = sparql.query('http://dbpedia.org/sparql', q_u)
+            print q_u
+            sys.exit()
+            result = sparql.query('http://localhost:8890/sparql', q_u)
             # print result
             # types = {}
             for row in result:
@@ -128,7 +117,7 @@ def resource_extractor_updated(labels):
                     try:
                         q_type=('SELECT distinct ?type WHERE  { <'+str(values[0].encode('utf-8')) + '> rdf:type ?type }')
                         # print q_type
-                        result_type = sparql.query('http://dbpedia.org/sparql', q_type)
+                        result_type = sparql.query('http://localhost:8890/sparql', q_type)
                         type_list = []
                         for row_type in result_type:
                             types1 = sparql.unpack_row(row_type)
@@ -154,7 +143,7 @@ def resource_extractor_updated(labels):
                         pass
             # entities[i] = types
             q = ('select distinct ?x where{?x rdfs:label "'+ label[0] +'"@en }')
-            result = sparql.query('http://dbpedia.org/sparql', q)
+            result = sparql.query('http://localhost:8890/sparql', q)
             for row in result:
                 values = sparql.unpack_row(row)
                 if not 'Category:' in values[0] or 'alumni' in values[0]:
@@ -162,7 +151,7 @@ def resource_extractor_updated(labels):
                     # resource_list.append(values[0])
                     q1=('SELECT distinct ?type WHERE  { <'+str(values[0].encode()) + '> rdf:type ?type }')
                     print q1
-                    result1 = sparql.query('http://dbpedia.org/sparql', q1)
+                    result1 = sparql.query('http://localhost:8890/sparql', q1)
                     type_list = []
                     for row1 in result1:
                         values1 = sparql.unpack_row(row1)
@@ -271,21 +260,14 @@ def date_extractor(date,resources):
 with open('obama_sample.txt','r') as f:
     para = f.readline()
     for i,row in enumerate(para.split('.')):
-        print i
-        print row
         # try:
         if row:
             doc = row
-            
-            tagged = ie_preprocess(doc)
-            # print tagged
-            tree = nltk.ne_chunk(tagged[0])
-            print "====Tree===="
-            print tree
-            # sys.exit()
-            # tree = Tree.fromstring(str(tree)
-            ent =  getNodes(tree)
-            # print ent
+            tree = st.tag(doc.split())
+            ent =  get_nodes_updated(tree)
+            print ent
+            # entity_merger(ent,row)
+            sys.exit()
             updated_labels = []
             for en in ent:
                 if 'University' in en[0] or 'College' in en[0] or 'School' in en[0]:
@@ -304,7 +286,6 @@ with open('obama_sample.txt','r') as f:
                 pass
             print "====Entities===="
             # print ent
-            # sys.exit()
             resources = resource_extractor_updated(ent)
             # resources = resource_extractor(ent)
             print resources
