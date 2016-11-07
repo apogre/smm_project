@@ -14,6 +14,7 @@ import datetime
 from string import digits
 from nltk.tag import StanfordNERTagger
 from itertools import groupby
+from pprint import pprint
 
 st = StanfordNERTagger('english.all.3class.distsim.crf.ser.gz')
 
@@ -49,7 +50,7 @@ def get_nodes_updated(netagged_words):
     ent = []
     for tag, chunk in groupby(netagged_words, lambda x:x[1]):
         if tag != "O":
-            tuple1 =(tag, " ".join(w for w, t in chunk))
+            tuple1 =(" ".join(w for w, t in chunk),tag)
             ent.append(tuple1)
     return ent
 
@@ -63,111 +64,77 @@ def date_parser(doc):
 entities = {} 
 resources = {}
 new_labels = []
-def resource_extractor(labels):
-    for i,label in enumerate(labels):
-        resource_list = []
-        score_list = {}
-        if label[1] != 'DATE':
-            label = label[0]
-            new_labels.append(label)
-            q = ('select distinct ?x where{?x rdfs:label "'+ label +'"@en }')
-            # print q
-            result = sparql.query('http://dbpedia.org/sparql', q)
-            # print result
-            types = {}
-            for row in result:
-                values = sparql.unpack_row(row)
-                if not 'Category:' in values[0] or 'alumni' in values[0]:
-                    # print values[0]
-                    # resource_list.append(values[0])
-                    # score_list[1.0] = [values[0],label]
-                    my_list = []
-                    # q1=('SELECT distinct ?type ?superType WHERE  { <'+str(values[0]) + '> rdf:type ?type . optional { ?type rdfs:subClassOf ?superType } }')
-                    # result1 = sparql.query('http://dbpedia.org/sparql', q1)
-                    # for row1 in result1:
-                    #     values1 = sparql.unpack_row(row1)
-                    #     my_list.append(values1)
-                    # types[values[0]]= my_list
-            entities[i] = types
-            resources[label].append(score_list)
-    # print types        
-    return resources
-            # print resources
 
 def resource_extractor_updated(labels):
-    print labels
+    # print labels
     for i,label in enumerate(labels):
         resource_list = []
         score_list = {}
         if label[1] != 'DATE':
-            print label
+            # print label
             # if label[1] == 'GPE':
             # label = label[0]
             new_labels.append(label)
-            q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER(regex(str(?label),"'+r'\\b' +str(label[0]) +r'\\b'+'", "i") && langMatches(lang(?label),"EN") )} limit 100')
-            print q_u
-            sys.exit()
+            q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER(regex(str(?label),"' +str(label[0]) +'", "i") && langMatches(lang(?label),"EN") )} limit 15')
+            # print q_u
             result = sparql.query('http://localhost:8890/sparql', q_u)
             # print result
             # types = {}
             for row in result:
                 values = sparql.unpack_row(row)
-                # print values
-                if not 'Category:' in values[0] or 'alumni' in values[0]:
+                # print values[0]
+                if not 'Category:' in values[0] and not 'wikidata' in values[0]:
                     try:
                         q_type=('SELECT distinct ?type WHERE  { <'+str(values[0].encode('utf-8')) + '> rdf:type ?type }')
-                        # print q_type
                         result_type = sparql.query('http://localhost:8890/sparql', q_type)
                         type_list = []
+                        # print q_type
                         for row_type in result_type:
                             types1 = sparql.unpack_row(row_type)
+                            # print types1
                             mytype =  types1[0].split('/')[-1]
                             types = str(mytype).translate(None,digits)
+                            # print types
                             if '#' in types:
                                 types = types.split('#')[-1]
                             type_list.append(types)
+                        type_list = list(set(type_list))
+                        if 'Q' in type_list:
+                            type_list.remove('Q')
+                        # print type_list
                         score = similar(values[1],label[0])
+                        # print score
                         values.append(type_list)
                         if score in score_list:
                             score_list[score].append(values)
                         else:
                             score_list[score] = [values]
-                        # resource_list.append(values[0])
-                        # my_list = []
-                        # q1=('SELECT distinct ?type ?superType WHERE  { <'+str(values[0]) + '> rdf:type ?type . optional { ?type rdfs:subClassOf ?superType } }')
-
-                        # sys.exit()
-                        #     my_list.append(values1)
-                        # types[values[0]]= my_list
                     except:
                         pass
-            # entities[i] = types
-            q = ('select distinct ?x where{?x rdfs:label "'+ label[0] +'"@en }')
-            result = sparql.query('http://localhost:8890/sparql', q)
-            for row in result:
-                values = sparql.unpack_row(row)
-                if not 'Category:' in values[0] or 'alumni' in values[0]:
-                    # print values[0]
-                    # resource_list.append(values[0])
-                    q1=('SELECT distinct ?type WHERE  { <'+str(values[0].encode()) + '> rdf:type ?type }')
-                    print q1
-                    result1 = sparql.query('http://localhost:8890/sparql', q1)
-                    type_list = []
-                    for row1 in result1:
-                        values1 = sparql.unpack_row(row1)
-                        mytype =  values1[0].split('/')[-1]
-                        types = str(mytype).translate(None,digits)
-                        if '#' in types:
-                            types = types.split('#')[-1]
-                        type_list.append(types)
-                    main_value = [values[0],label[0],type_list]
-                    if 1.0 in score_list:
-                        score_list[1.0].append(main_value)
-                    else:
-                        score_list[1.0] = [main_value]
+            # q = ('select distinct ?x where{?x rdfs:label "'+ label[0] +'"@en }')
+            # result = sparql.query('http://localhost:8890/sparql', q)
+            # for row in result:
+            #     values = sparql.unpack_row(row)
+            #     if not 'Category:' in values[0] or 'alumni' in values[0]:
+            #         # print values[0]
+            #         # resource_list.append(values[0])
+            #         q1=('SELECT distinct ?type WHERE  { <'+str(values[0].encode()) + '> rdf:type ?type }')
+            #         print q1
+            #         result1 = sparql.query('http://localhost:8890/sparql', q1)
+            #         type_list = []
+            #         for row1 in result1:
+            #             values1 = sparql.unpack_row(row1)
+            #             mytype =  values1[0].split('/')[-1]
+            #             types = str(mytype).translate(None,digits)
+            #             if '#' in types:
+            #                 types = types.split('#')[-1]
+            #             type_list.append(types)
+            #         main_value = [values[0],label[0],type_list]
+            #         if 1.0 in score_list:
+            #             score_list[1.0].append(main_value)
+            #         else:
+            #             score_list[1.0] = [main_value]
             resources[label[0]] = score_list
-            # print resources
-    # print types        
     return resources
 
 
@@ -178,11 +145,18 @@ def relation_extractor(resources):
     print "====Relations===="
     my_item1 = []
     my_item2 = []
-    for i in range(0,len(resources)):
-        print new_labels[i][0]
+    for i in range(0,len(resources)-1):
+        # print new_labels[i][0]
         if str(new_labels[i][0]) in resources:
-            for item1_k,item1_v in resources[new_labels[i][0]].iteritems():
+            keylist_1 = resources[new_labels[i][0]].keys()
+            keylist_1.sort(reverse=True)
+            # print keylist_1
+            for key1 in keylist_1:
+                # print key1
+                item1_v = resources[new_labels[i][0]][key1]
+                # print item1_v
                 for i1 in item1_v:
+                    # print i1
                     if 'dbpedia' in i1[0]:
                         try:
                             link = urllib2.urlopen(i1[0])
@@ -190,12 +164,16 @@ def relation_extractor(resources):
                             url1 = url1.replace('page','resource')
                         except:
                             url1 = i1[0]
-                        # print url1
-                    # print item1
+                        print "====================="
+                        print url1
                     for j in range(i+1,len(resources)):
                         if str(new_labels[j][0]) in resources:
-                            for item2_k,item2_v in resources[new_labels[j][0]].iteritems():
-                                # print item1_v[0],item2_v[0]
+                            keylist_2 = resources[new_labels[j][0]].keys()
+                            keylist_2.sort(reverse=True)
+                            for key2 in keylist_2:
+                                item2_v = resources[new_labels[j][0]][key2]
+                    #             # print item1_v[0],item2_v[0]
+                                # print new_labels[j][0]
                                 for i2 in item2_v:
                                     if 'dbpedia' in i2[0]:
                                         try:
@@ -209,32 +187,39 @@ def relation_extractor(resources):
                                     try:
                                         q1=('SELECT ?r WHERE  { <'+str(url1) + '> ?r <' +str(url2)+'>}')
                                         # print q1
-                                        # if 'wikidata' in item1 and 'wikidata' in item2:
-                                        #     print q1
-                                        #     result1 = doSparqlQuery(q1)
-                                        #     data = result1['results']['bindings'][0]
-                                        #     print([str(item1),str(data['r']['value']),str(item2)])
-                                        #     print '\n'
-                                        #     rel =  data['r']['value'].split('/')
-                                        #     relation.append(rel[-1])
-                                        # if url1 not in my_item1 and url2 not in my_item2:
+                    #                     # if 'wikidata' in item1 and 'wikidata' in item2:
+                    #                     #     print q1
+                    #                     #     result1 = doSparqlQuery(q1)
+                    #                     #     data = result1['results']['bindings'][0]
+                    #                     #     print([str(item1),str(data['r']['value']),str(item2)])
+                    #                     #     print '\n'
+                    #                     #     rel =  data['r']['value'].split('/')
+                    #                     #     relation.append(rel[-1])
+                    #                     # if url1 not in my_item1 and url2 not in my_item2:
                                         if 'dbpedia' in url1 and 'dbpedia' in url2:
-                                            result1 = sparql.query('http://dbpedia.org/sparql', q1)
-                                            # print q1
-                                            my_item1.append(url1)
-                                            my_item2.append(url2)
-                                            for row1 in result1:
-                                                values1 = sparql.unpack_row(row1)
-                                                if values1:
-                                                    print([str(url1),str(values1[0]),str(url2)])
-                                                    print '\n'
-                                                    rel =  values1[0].split('/')
-                                                    relation.append(rel[-1])
-                                            # print relation
-                                                        # writer.writerow([str(item1),str(values1[0]),str(item2)])  
-                                                    # relation.append(values1[0])
+                                            # print "=url1"
+                                            # print my_item1
+                                            if url1 not in my_item1:
+                                                result1 = sparql.query('http://dbpedia.org/sparql', q1)
+                                                # print "urls============"
+                                                # print url1
+                                                print url2
+                                                
+                        #                         my_item2.append(url2)
+                                                for row1 in result1:
+                                                    values1 = sparql.unpack_row(row1)
+                                                    if values1:
+                                                        print "relations============"
+                                                        print([str(url1),str(values1[0]),str(url2)])
+                        #                                 print '\n'
+                        #                                 rel =  values1[0].split('/')
+                        #                                 relation.append(rel[-1])
+                        #                         # print relation
+                        #                                     # writer.writerow([str(item1),str(values1[0]),str(item2)])  
+                        #                                 # relation.append(values1[0])
                                     except:
-                                        pass 
+                                        pass
+                            my_item1.append(url1) 
 
 def date_extractor(date,resources):
     # print resources
@@ -265,9 +250,7 @@ with open('obama_sample.txt','r') as f:
             doc = row
             tree = st.tag(doc.split())
             ent =  get_nodes_updated(tree)
-            print ent
-            # entity_merger(ent,row)
-            sys.exit()
+            # print ent
             updated_labels = []
             for en in ent:
                 if 'University' in en[0] or 'College' in en[0] or 'School' in en[0]:
@@ -285,10 +268,11 @@ with open('obama_sample.txt','r') as f:
             except:
                 pass
             print "====Entities===="
-            # print ent
+            print ent
             resources = resource_extractor_updated(ent)
-            # resources = resource_extractor(ent)
+            print "====Resources===="
             print resources
+            relation_extractor(resources)
             # print date_flag
             # now_current = datetime.datetime.now()
             # relation_extractor(resources)
@@ -300,11 +284,3 @@ with open('obama_sample.txt','r') as f:
             # objects.extend(ent)
         # except:
         #     pass
-                # with open('logs.csv','ab') as csvf:
-                #     swriter = csv.writer(csvf)
-                #     swriter.writerow(row)
-# print resources
-
-# print entities
-# with open('entity.txt','wb') as fp:
-#     pickle.dump(objects,fp)
