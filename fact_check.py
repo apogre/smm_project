@@ -14,7 +14,6 @@ import datetime
 from string import digits
 from nltk.tag import StanfordNERTagger
 from itertools import groupby
-from pprint import pprint
 
 st = StanfordNERTagger('english.all.3class.distsim.crf.ser.gz')
 
@@ -26,8 +25,8 @@ SPARQL_SERVICE_URL = 'https://query.wikidata.org/sparql'
 global date_flag
 date_flag = 0
 
-# export CLASSPATH=/home/wolfgang/Downloads/stanford-ner-2015-04-20/stanford-ner-3.5.2.jar
-# export STANFORD_MODELS=/home/wolfgang/Downloads/stanford-ner-2015-04-20/classifiers
+# export CLASSPATH=/home/apradhan/proj/stanford-ner-2015-12-09/stanford-ner.jar
+# export STANFORD_MODELS=/home/apradhan/proj/stanford-ner-2015-12-09/classifiers
 
 # grammar = r"""
 #         NP: {<DT>?<JJ.*>*<NN.*>+}
@@ -76,7 +75,7 @@ def resource_extractor_updated(labels):
             # label = label[0]
             new_labels.append(label)
             q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER(regex(str(?label),"' +str(label[0]) +'", "i") && langMatches(lang(?label),"EN") )} limit 15')
-            # print q_u
+            print q_u
             result = sparql.query('http://localhost:8890/sparql', q_u)
             # print result
             # types = {}
