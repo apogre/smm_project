@@ -50,26 +50,26 @@ def resource_extractor_updated(sent_id,labels):
         resources["sent_id"] = sent_id+1
         # resource_list = []
         # score_list = {}
-        q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER(regex(str(?label),"' +str(label[0]) +'", "i") && langMatches(lang(?label),"EN") )} limit 10')
+        # -- q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER(regex(str(?label),"' +str(label[0]) +'", "i") && langMatches(lang(?label),"EN") )} limit 10')
         # print q_u
-        try:
-            result = sparql.query('http://localhost:8890/sparql', q_u)
-            # # # print result
-            # # types = {}
-            for row in result:
-                values = sparql.unpack_row(row)
-                # print values[0]
-                if not 'Category:' in values[0] and not 'wikidata' in values[0]:
-                    # print values
-                    score = similar_score(values[1],label[0])
-                    if 'FC' in values[1] or 'F.C.' in values[1]:
-                        score = score+1
-                    values.append(score)
-                    # print values
-                    value_list.append(values)
-            resources["resources"] = str(value_list)
-        except:
-            resources["resources"] = ""
+        # try:
+        #     result = sparql.query('http://localhost:8890/sparql', q_u)
+        #     # # # print result
+        #     # # types = {}
+        #     for row in result:
+        #         values = sparql.unpack_row(row)
+        #         # print values[0]
+        #         if not 'Category:' in values[0] and not 'wikidata' in values[0]:
+        #             # print values
+        #             score = similar_score(values[1],label[0])
+        #             if 'FC' in values[1] or 'F.C.' in values[1]:
+        #                 score = score+1
+        #             values.append(score)
+        #             # print values
+        #             value_list.append(values)
+        #     resources["resources"] = str(value_list)
+        # except:
+        resources["resources"] = ""
         # print "======================"
         # print resources
         res_list.append(resources)
@@ -79,8 +79,14 @@ def resource_extractor_updated(sent_id,labels):
 # sys.exit()
 with open('tweet3.csv','rb') as csvfile:
     reader = csv.reader(csvfile)
+    j = 0
     for i,row in enumerate(reader):
         print i
+        j = j+1
+        if j ==1000:
+            conn.commit()
+            print 'commit '+str(i)
+            j=0
         doc = row[0]
         doc = doc.replace('RT','')
         try:
@@ -102,6 +108,7 @@ with open('tweet3.csv','rb') as csvfile:
                 swriter.writerow(row)
 # cur.commit()
 conn.commit()
+conn.close()
 
 # print entities
 # with open('entity.txt','wb') as fp:

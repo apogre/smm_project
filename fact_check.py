@@ -77,10 +77,16 @@ def resource_extractor_updated(labels):
             # label = label[0]
             new_labels.append(label)
             my_labels = label[0].split()
-            if len(my_labels) == 1:
-                q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[0]) +'" . }')
-            else:
-                q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[1]) +'" . FILTER (CONTAINS(?label, "'+str(my_labels[0])+'"))}')
+            if label[1] == 'PERSON':
+                if len(my_labels) == 1:
+                    q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type foaf:Person . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[0]) +'" . }')
+                else:
+                    q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type foaf:Person . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[1]) +'" . FILTER (CONTAINS(?label, "'+str(my_labels[0])+'"))}')
+            elif label[1] == 'LOCATION':
+                if len(my_labels) == 1:
+                    q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type dbo:Location . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[0]) +'" . }')
+                else:
+                    q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type dbo:Location . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[1]) +'" . FILTER (CONTAINS(?label, "'+str(my_labels[0])+'"))}')
             print q_u
             result = sparql.query(sparql_dbpedia, q_u)
             link_list = []
@@ -93,27 +99,27 @@ def resource_extractor_updated(labels):
                     r_link = redirect_link(values[0])
                     if r_link not in link_list:
                         try:
-                            q_type=('SELECT distinct ?type WHERE  { <'+str(r_link.encode('utf-8')) + '> rdf:type ?type }')
-                            result_type = sparql.query(sparql_dbpedia, q_type)
+                            # q_type=('SELECT distinct ?type WHERE  { <'+str(r_link.encode('utf-8')) + '> rdf:type ?type }')
+                            # result_type = sparql.query(sparql_dbpedia, q_type)
                             link_list.append(r_link)
                             type_list = []
-                            print q_type
-                            for row_type in result_type:
-                                types1 = sparql.unpack_row(row_type)
+                            # print q_type
+                            # for row_type in result_type:
+                                # types1 = sparql.unpack_row(row_type)
                                 # print types1
-                                mytype =  types1[0].split('/')[-1]
-                                types = str(mytype).translate(None,digits)
+                                # mytype =  types1[0].split('/')[-1]
+                                # types = str(mytype).translate(None,digits)
                                 # print types
-                                if '#' in types:
-                                    types = types.split('#')[-1]
-                                type_list.append(types)
-                            type_list = list(set(type_list))
-                            if 'Q' in type_list:
-                                type_list.remove('Q')
+                                # if '#' in types:
+                                #     types = types.split('#')[-1]
+                                # type_list.append(types)
+                            # type_list = list(set(type_list))
+                            # if 'Q' in type_list:
+                            #     type_list.remove('Q')
                             # print type_list
                             score = similar(values[1],label[0])
-                            # print score
-                            values.append(type_list)
+                            print score
+                            # values.append(type_list)
                             if score in score_list:
                                 score_list[score].append(values)
                             else:
