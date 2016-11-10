@@ -27,7 +27,7 @@ SPARQL_SERVICE_URL = 'https://query.wikidata.org/sparql'
 sparql_dbpedia = 'https://dbpedia.org/sparql'
 global date_flag
 date_flag = 0
-threshold_value = 0.5
+threshold_value = 0.8
 
 # export CLASSPATH=/home/apradhan/proj/stanford-ner-2015-12-09/stanford-ner.jar
 # export STANFORD_MODELS=/home/apradhan/proj/stanford-ner-2015-12-09/classifiers
@@ -74,6 +74,7 @@ def resource_extractor_updated(labels):
         resource_list = []
         score_list = {}
         if label[1] != 'DATE':
+
             # print label
             # if label[1] == 'GPE':
             # label = label[0]
@@ -83,7 +84,7 @@ def resource_extractor_updated(labels):
                 if len(my_labels) == 1:
                     q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type foaf:Person . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[0]) +'" . }')
                 else:
-                    q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type foaf:Person . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[1]) +'" . FILTER (CONTAINS(?label, "'+str(my_labels[0])+'"))}')
+                    q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type foaf:Person . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[-1]) +'" . FILTER (CONTAINS(?label, "'+str(my_labels[0])+'"))}')
             elif label[1] == 'LOCATION':
                 if len(my_labels) == 1:
                     q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type dbo:Location . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[0]) +'" . }')
@@ -248,7 +249,7 @@ def relation_extractor(resources):
                                         break
                             except:
                                     pass
-                        my_item1.append(url1) 
+                        # my_item1.append(url1) 
 
 def date_extractor(date,resources):
     # print resources
@@ -278,8 +279,10 @@ with open('obama_sample.txt','r') as f:
         if row:
             doc = row
             tree = st.tag(doc.split())
+            print tree
             ent =  get_nodes_updated(tree)
-            # print ent
+            print ent
+            # sys.exit()
             updated_labels = []
             for en in ent:
                 if 'University' in en[0] or 'College' in en[0] or 'School' in en[0]:
@@ -298,6 +301,14 @@ with open('obama_sample.txt','r') as f:
                 pass
             print "====Entities===="
             print ent
+            for e in ent:
+                if e[1] == 'LOCATION' and ',' in e[0]:
+                    loc_label = e[0].split(',')
+                    for loc in loc_label:
+                        ent.append((loc,'LOCATION'))
+                    # ent.remove(e)
+            print ent
+            # sys.exit()
             resources = resource_extractor_updated(ent)
             print "====Resources===="
             print resources
