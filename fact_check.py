@@ -97,19 +97,25 @@ def resource_extractor_updated(labels):
                     q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label .  FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[1]) +'" . FILTER (CONTAINS(?label, "'+str(my_labels[0])+'"))}')
 
             print q_u
+            # sys.exit()
             result = sparql.query(sparql_dbpedia, q_u)
             link_list = []
             # print result
             # types = {}
             
             values = [sparql.unpack_row(row) for row in result]
+            new_val = [val for val in values if not 'Category:' in val[0] and not 'wikidata' in val[0]]
+            values = new_val
             # print values
 
             add_score = [similar(label[0],val[1]) for val in values]
             # print add_score
 
             for s,score in enumerate(add_score):
-                values[s].append(score)
+                if not 'Category:' in values[0] and not 'wikidata' in values[0]:
+                    values[s].append(score)
+                else:
+                    values.remove(values[s])
             # print values
 
             sorted_values = sorted(values,key=operator.itemgetter(2),reverse=True)
@@ -278,10 +284,11 @@ with open('obama_sample.txt','r') as f:
         # try:
         if row:
             doc = row
+            print doc
             tree = st.tag(doc.split())
             print tree
             ent =  get_nodes_updated(tree)
-            print ent
+            # print ent
             # sys.exit()
             updated_labels = []
             for en in ent:
@@ -300,7 +307,7 @@ with open('obama_sample.txt','r') as f:
             except:
                 pass
             print "====Entities===="
-            print ent
+            # print ent
             for e in ent:
                 if e[1] == 'LOCATION' and ',' in e[0]:
                     loc_label = e[0].split(',')

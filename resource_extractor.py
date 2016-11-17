@@ -1,90 +1,113 @@
-import cPickle as pickle
+import psycopg2
+import sparql
+from itertools import groupby
+import operator
+from difflib import SequenceMatcher
+import sys
+import re
+import csv
 
-def resource_extractor_updated(labels):
-    print labels
-    for i,label in enumerate(labels):
-        resource_list = []
-        score_list = {}
-        if label[1] != 'DATE':
-            print label
-            # if label[1] == 'GPE':
-            # label = label[0]
-            new_labels.append(label)
-            q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER(regex(str(?label),"'+r'\\b' +str(label[0]) +r'\\b'+'", "i") && langMatches(lang(?label),"EN") )} limit 100')
-            # print q_u
-            result = sparql.query('http://dbpedia.org/sparql', q_u)
-            # print result
-            # types = {}
-            for row in result:
-                values = sparql.unpack_row(row)
-                # print values
-                if not 'Category:' in values[0] or 'alumni' in values[0]:
-                    try:
-                        q_type=('SELECT distinct ?type WHERE  { <'+str(values[0].encode('utf-8')) + '> rdf:type ?type }')
-                        # print q_type
-                        result_type = sparql.query('http://dbpedia.org/sparql', q_type)
-                        type_list = []
-                        for row_type in result_type:
-                            types1 = sparql.unpack_row(row_type)
-                            mytype =  types1[0].split('/')[-1]
-                            types = str(mytype).translate(None,digits)
-                            if '#' in types:
-                                types = types.split('#')[-1]
-                            type_list.append(types)
-                        score = similar(values[1],label[0])
-                        values.append(type_list)
-                        if score in score_list:
-                            score_list[score].append(values)
-                        else:
-                            score_list[score] = [values]
-                        # resource_list.append(values[0])
-                        # my_list = []
-                        # q1=('SELECT distinct ?type ?superType WHERE  { <'+str(values[0]) + '> rdf:type ?type . optional { ?type rdfs:subClassOf ?superType } }')
+conn = psycopg2.connect("dbname='smm_tweet' user='apradhan' host='localhost' password='wisepass'")
+cur = conn.cursor()
 
-                        # sys.exit()
-                        #     my_list.append(values1)
-                        # types[values[0]]= my_list
-                    except:
-                        pass
-            # entities[i] = types
-            q = ('select distinct ?x where{?x rdfs:label "'+ label[0] +'"@en }')
-            result = sparql.query('http://dbpedia.org/sparql', q)
-            for row in result:
-                values = sparql.unpack_row(row)
-                if not 'Category:' in values[0] or 'alumni' in values[0]:
-                    # print values[0]
-                    # resource_list.append(values[0])
-                    q1=('SELECT distinct ?type WHERE  { <'+str(values[0].encode()) + '> rdf:type ?type }')
-                    print q1
-                    result1 = sparql.query('http://dbpedia.org/sparql', q1)
-                    type_list = []
-                    for row1 in result1:
-                        values1 = sparql.unpack_row(row1)
-                        mytype =  values1[0].split('/')[-1]
-                        types = str(mytype).translate(None,digits)
-                        if '#' in types:
-                            types = types.split('#')[-1]
-                        type_list.append(types)
-                    main_value = [values[0],label[0],type_list]
-                    if 1.0 in score_list:
-                        score_list[1.0].append(main_value)
-                    else:
-                        score_list[1.0] = [main_value]
-            resources[label[0]] = score_list
-            # print resources
-    # print types        
-    return resources
+ref = {"CPFC":"Crystal Palace","Gunners":"Arsenal","MCFC":"Manchester City","Reds":"Liverpool FC","United":"Manchester United","MUFC":"Manchester United","ManUtd":"Manchester United","EFC":"Everton FC","LFC":"Liverpool FC","NCFC":"New Castle FC","Blues":"Chelsea","CFC":"Chelsea","EPL":"English Premier","THFC":"Tottenham","premierleague":"premier league","Kop":"Liverpool FC","LCFC":"LeicesterCity","Foxes":"Leicester City"}
 
-entity_list = []
+def redirect_link(o_link):
+    try:
+        link = urllib2.urlopen(o_link)
+        url1 = link.geturl()
+        r_link = url1.replace('page','resource')
+    except:
+        r_link = o_link
+    return r_link
 
-with open('entity_data.txt') as fp:
-    data = pickle.load(fp)
-    for d in data:
-        print d
-        if d not in entity_list:
-            entity_list.append(d)
+def similar(a,b):
+    # print a, b
+    try:
+        raw_score = SequenceMatcher(None,a,b).ratio()
+        # print raw_score
+        if 'FC' in b.split() or 'F.C.' in b.split():
+            raw_score = raw_score+1
+        return raw_score
+    except:
+        return 0
 
-print entity_list, len(entity_list)
+def similar_loc(a,b):
+    # print a, b
+    try:
+        raw_score = SequenceMatcher(None,a,b).ratio()
+        return raw_score
+    except:
+        return 0
 
-with open('entity_set.txt','wb') as fp:
-  pickle.dump(entity_list,fp)
+def resource_extractor_updated(ent):
+    org_labels = ent[1].split()
+    # org_labels = ["United"]
+    if len(org_labels) == 1:
+        if org_labels[0] in ref:
+            new_labels = ref[org_labels[0]]
+            my_labels = new_labels.split()
+        else:
+            my_labels = org_labels
+    else:
+        my_labels = org_labels
+    # print ent
+    try:
+        if ent[2] == 'PERSON':
+            if len(my_labels) == 1:
+                q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type foaf:Person . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[0]) +'" . } ')
+            else:
+                q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . ?uri rdf:type foaf:Person . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[-1]) +'" . FILTER (CONTAINS(?label, "'+str(my_labels[0])+'"))}')
+        else:
+            if len(my_labels) == 1:
+                q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label . FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[0]) +'" . }')
+            else:
+                q_u = ('SELECT distinct ?uri ?label WHERE { ?uri rdfs:label ?label .  FILTER langMatches( lang(?label), "EN" ). ?label bif:contains "' +str(my_labels[1]) +'" . FILTER (CONTAINS(?label, "'+str(my_labels[0])+'"))}')
+    
+        # print q_u
+        # sys.exit()
+        result = sparql.query('http://dbpedia.org/sparql', q_u)
+        values = [sparql.unpack_row(row) for row in result]
+        if values:
+            new_val = [redirect_link(val) for val in values if not 'Category:' in val[0] and not 'wikidata' in val[0]]
+            # print new_val
+            values = new_val
+            # print values
+            # print ent[1]
+            # for val in values:
+            #     test = similar(ent[1],val[1])
+            #     print test,val[1]
+            if ent[2] == 'LOCATION':
+                add_score = [similar_loc(ent[1],val[1]) for val in values]
+            else:
+                add_score = [similar(ent[1],val[1]) for val in values]
+            # print add_score
+            for s,score in enumerate(add_score):
+                values[s].append(score)
+            sorted_values = sorted(values,key=operator.itemgetter(2),reverse=True)
+            # print ent[0],sorted_values[1:10]
+            if sorted_values:
+            #     # print row[0], str(sorted_values[1:10])
+                u_q = """UPDATE entity set resources = %s where id = %s"""
+                # print u_q
+                cur.execute(u_q,('"'+str(sorted_values[1:10])+'"',ent[0]))
+                conn.commit()
+            else:
+                pass
+    except:
+        # print 'no value'
+        with open('entity_resource.csv','ab') as csvf:
+            swriter = csv.writer(csvf)
+            swriter.writerow(ent)
+            # pass
+
+
+cur.execute("SELECT id,entity_name,entity_type from entity where resources = '' and id > 14007")
+entities = cur.fetchall()
+for ent in entities:
+    print ent[0]
+    # ent[1]='United'
+    resource_extractor_updated(ent)
+
+print "Operation done successfully";
+conn.close()

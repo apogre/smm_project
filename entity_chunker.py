@@ -77,7 +77,7 @@ def resource_extractor_updated(sent_id,labels):
 
 # insert_data()
 # sys.exit()
-with open('tweet3.csv','rb') as csvfile:
+with open('tweet.csv','rb') as csvfile:
     reader = csv.reader(csvfile)
     j = 0
     for i,row in enumerate(reader):
@@ -91,17 +91,19 @@ with open('tweet3.csv','rb') as csvfile:
         doc = doc.replace('RT','')
         try:
             tree = st.tag(doc.split())
+            print tree
+            # sys.exit(0)
             ent =  get_nodes_updated(tree)
-            # print ent
+            print ent
             mentions = [[re.sub(r'\W+','',x),'mentions'] for x in doc.split() if x.startswith('@')]
             hashtags = [[re.sub(r'\W+','',x),'hashtags'] for x in doc.split() if x.startswith('#')]
-            # print mentions
+            # # print mentions
             mentions.extend(ent)
-            mentions.extend(hashtags)
+            # mentions.extend(hashtags)
             # print mentions
             res_tup = resource_extractor_updated(i,mentions)
-            # print res_tup
-            insert_data(res_tup)
+            print res_tup
+            # insert_data(res_tup)
         except:
             with open('logs1.csv','ab') as csvf:
                 swriter = csv.writer(csvf)
